@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 ARG \
-  STASH_TAG="latest" \
-  UPSTREAM_STASH="docker.io/stashapp/stash:${STASH_TAG}"
+  STASH_TAG="develop" \
+  UPSTREAM_STASH="ghcr.io/notsafeforgit/stash:${STASH_TAG}"
 FROM $UPSTREAM_STASH AS stash
 
 FROM docker.io/library/alpine:3.23 AS final
@@ -76,8 +76,8 @@ LABEL \
   org.opencontainers.image.created=$BUILD_DATE \
   org.opencontainers.image.revision=$GITHASH \
   org.opencontainers.image.description="stashapp/stash container with hwaccel, py and user switching" \
-  org.opencontainers.image.source=https://github.com/feederbox826/stash-s6 \
-  org.opencontainers.image.vendor=feederbox826 \
+  org.opencontainers.image.source=https://github.com/notsafeforgit/stash-s6 \
+  org.opencontainers.image.vendor=notsafeforgit \
   org.opencontainers.image.licenses=AGPL-3.0-only
 WORKDIR /config
 EXPOSE 9999
