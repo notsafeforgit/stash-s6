@@ -78,11 +78,11 @@ target "_common" {
 }
 
 target "_alpine_multi" {
-  platforms = ["linux/amd64", "linux/arm64", "linux/arm/v6", "linux/arm/v7"]
+  platforms = ["linux/amd64"]
 }
 
 target "_debian_multi" {
-  platforms = ["linux/amd64", "linux/arm64"]
+  platforms = ["linux/amd64"]
 }
 
 target "_develop" {
@@ -179,16 +179,12 @@ function "tag" {
   result = concat(
     [
       "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}",
-      "docker.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}",
-      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}-${SHORT_BUILD_DATE}",
-      "docker.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}-${SHORT_BUILD_DATE}"
+      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}-${SHORT_BUILD_DATE}"
     ],
     variant == "alpine" ? [
-      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:latest",
-      "docker.io/${OWNER_NAME}/${IMAGE_NAME}:latest"
+      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:latest"
     ] : variant == "alpine-develop" ? [
-      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:develop",
-      "docker.io/${OWNER_NAME}/${IMAGE_NAME}:develop"
+      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:develop"
     ] : []
   )
 }
