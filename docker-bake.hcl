@@ -87,7 +87,7 @@ target "_debian_multi" {
 
 target "_develop" {
   args = {
-    STASH_TAG = "development"
+    STASH_TAG = "develop"
   }
 }
 
