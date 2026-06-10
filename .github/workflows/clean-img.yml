@@ -1,16 +1,71 @@
 name: clean-images
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 2 * *'
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   clean:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package_name:
+          - stash-s6
+          - stash-s6-cache
     steps:
-      - uses: Chizkiyahu/delete-untagged-ghcr-action@main
+      - name: delete untagged GHCR versions
+        uses: actions/github-script@v8
         with:
-          owner_type: user
-          token: ${{ secrets.GH_PAT }}
-          repository_owner: ${{ github.repository_owner }}
-          except_untagged_multiplatform: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const packageName = '${{ matrix.package_name }}';
+            const ownerType = context.payload.repository.owner.type;
+            const isOrg = ownerType === 'Organization';
+
+            const listVersions = isOrg
+              ? github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg
+              : github.rest.packages.getAllPackageVersionsForPackageOwnedByUser;
+            const deleteVersion = isOrg
+              ? github.rest.packages.deletePackageVersionForOrg
+              : github.rest.packages.deletePackageVersionForUser;
+
+            const versions = await github.paginate(listVersions, {
+              package_type: 'container',
+              package_name: packageName,
+              org: isOrg ? owner : undefined,
+              username: isOrg ? undefined : owner,
+              per_page: 100,
+            }).catch((error) => {
+              if (error.status === 404) {
+                core.info(`Package ${packageName} not found for ${owner}; skipping.`);
+                return [];
+              }
+
+              throw error;
+            });
+
+            const untaggedVersions = versions.filter((version) => {
+              const tags = version.metadata?.container?.tags ?? [];
+              return tags.length === 0;
+            });
+
+            if (untaggedVersions.length === 0) {
+              core.info(`No untagged versions found for ${packageName}.`);
+              return;
+            }
+
+            for (const version of untaggedVersions) {
+              await deleteVersion({
+                package_type: 'container',
+                package_name: packageName,
+                package_version_id: version.id,
+                org: isOrg ? owner : undefined,
+                username: isOrg ? undefined : owner,
+              });
+
+              core.info(`Deleted ${packageName} version ${version.id}.`);
+            }

@@ -31,14 +31,12 @@ ghcr.io/feederbox826/stash-s6:hwaccel-alpine
 ```
 hardware acceleration from [jellyfin-ffmpeg](https://jellyfin.org/docs/general/administration/hardware-acceleration/), built on alpine
 
-## `-develop` variants ![Build Date](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Ffeederbox826%2Fstash-s6%2Factions%2Fworkflows%2F103206424%2Fruns%3Fstatus%3Dcompleted%26per_page%3D1&query=%24.workflow_runs%5B0%5D.run_started_at&label=build%20date)
+## v3 rewrite variants
 
-Append `-develop` to the tag to run the development builds of stash
-- `develop` / `alpine-develop` ![Docker Image Size (tag)](https://img.shields.io/docker/image-size/feederbox826/stash-s6/alpine-develop)
-- `hwaccel-develop` ![Docker Image Size (tag)](https://img.shields.io/docker/image-size/feederbox826/stash-s6/hwaccel-develop)
-- `hwaccel-alpine-develop` ![Docker Image Size (tag)](https://img.shields.io/docker/image-size/feederbox826/stash-s6/hwaccel-alpine-develop)
-
-Date suffixes are also available for point-in-time snapshotting.
+These fork images are built from `ghcr.io/notsafeforgit/stash:v3-rewrite`:
+- `v3-rewrite` / `alpine-v3-rewrite`
+- `hwaccel-v3-rewrite`
+- `hwaccel-alpine-v3-rewrite`
 
 ## environment variables
 `PUID` - Process User ID  
@@ -50,6 +48,7 @@ Date suffixes are also available for point-in-time snapshotting.
 `CUSTOM_CERT_PATH` - Path to custom root certificates to be added to stash (defaults to `/config/certs`)  
 `INSTALL_PY_DEPS` - Automatically install some python build-tools at startup  
 `IGNORE_BAD_PERMS` - Allow continuing with bad permissions instead of exiting.  
+`STASH_ENABLE_V3_UI` - Set to `true` to enable the forked v3 Stash UI.
 
 ## migration-specific environment variables
 `MIGRATE` - automatic migration from `stashapp/stash` or `hotio/stash`

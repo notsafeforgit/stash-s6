@@ -1,18 +1,15 @@
-name: develop-bake
+name: v3-rewrite-bake
 on:
   push:
     branches:
-      - main
+      - v3-rewrite
     paths:
+      - '.github/workflows/develop.yml'
       - 'dockerfile/**'
       - 'docker-bake.hcl'
       - 'stash/**'
       - 'VERSION'
   workflow_dispatch:
-  repository_dispatch:
-    types: [upstream_update]
-  schedule:
-    - cron: '0 0 */7 * *'
 
 permissions:
   contents: read
@@ -30,10 +27,41 @@ jobs:
           echo "EPOCH=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
           echo "TIMESTAMP=$(git log -1 --pretty=%cI)" >> $GITHUB_OUTPUT
           echo "GITHASH=$(git rev-parse --short ${{ github.sha }})" >> $GITHUB_OUTPUT
-      # set up qemu and buildx
-      - uses: docker/setup-qemu-action@v3
+      - id: upstream
+        name: resolve upstream stash v3-rewrite tag
+        uses: actions/github-script@v8
         with:
-          platforms: arm,arm64
+          script: |
+            const versions = await github.paginate(
+              "GET /users/{username}/packages/{package_type}/{package_name}/versions",
+              {
+                username: "notsafeforgit",
+                package_type: "container",
+                package_name: "stash",
+                per_page: 100,
+              }
+            );
+
+            const candidates = versions
+              .flatMap((version) =>
+                (version.metadata?.container?.tags || [])
+                  .filter((tag) => /^v3-rewrite-[0-9a-f]{7,}$/i.test(tag))
+                  .map((tag) => ({
+                    tag,
+                    createdAt: version.created_at || "",
+                  }))
+              )
+              .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+            const stashTag = candidates[0]?.tag;
+            if (!stashTag) {
+              core.setFailed("No immutable upstream stash v3-rewrite-* tag was found.");
+              return;
+            }
+
+            core.info(`Using upstream stash tag ${stashTag}`);
+            core.setOutput("stash_tag", stashTag);
+      # set up buildx
       - uses: docker/setup-buildx-action@v3
         with:
           buildkitd-config-inline: |
@@ -45,18 +73,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/login-action@v3
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
       # bake
       - uses: docker/bake-action@v6
         with:
           push: true
           targets: |
-            develop_ci_alpine
-            develop_ci_debian
+            v3_ci_alpine
+            v3_ci_debian
         env:
           GITHASH: ${{ steps.meta.outputs.GITHASH }}
           BUILD_DATE: ${{ steps.meta.outputs.TIMESTAMP }}
+          STASH_TAG: ${{ steps.upstream.outputs.stash_tag }}
           SOURCE_DATE_EPOCH: ${{ env.EPOCH }}

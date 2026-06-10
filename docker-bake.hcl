@@ -9,14 +9,14 @@ group "release_ci_debian" {
   output = ["type=registry"]
 }
 
-// develop CI
-group "develop_ci_alpine" {
-  targets = ["alpine-develop", "hwaccel-alpine-develop", "hwaccel-develop"]
+// v3 rewrite CI
+group "v3_ci_alpine" {
+  targets = ["alpine-v3-rewrite", "hwaccel-alpine-v3-rewrite"]
   output = ["type=registry"]
 }
 
-group "develop_ci_debian" {
-  targets = ["hwaccel-develop"]
+group "v3_ci_debian" {
+  targets = ["hwaccel-v3-rewrite"]
   output = ["type=registry"]
 }
 
@@ -28,7 +28,7 @@ group "default" {
 // variables
 variable "OWNER_NAME" {
   type = string
-  default = "feederbox826"
+  default = "notsafeforgit"
 }
 
 variable "IMAGE_NAME" {
@@ -54,6 +54,11 @@ variable "BUILD_DATE" {
 variable "GITHASH" {
   type = string
   default = "local-build"
+}
+
+variable "STASH_TAG" {
+  type = string
+  default = "v3-rewrite"
 }
 
 variable "CI" {
@@ -85,9 +90,12 @@ target "_debian_multi" {
   platforms = ["linux/amd64", "linux/arm64"]
 }
 
-target "_develop" {
+target "_v3" {
+  platforms = ["linux/amd64"]
+  pull = true
+  no-cache-filter = ["stash"]
   args = {
-    STASH_TAG = "development"
+    STASH_TAG = STASH_TAG
   }
 }
 
@@ -116,26 +124,29 @@ target "hwaccel" {
   cache-from = cache_from("hwaccel")
 }
 
-// develop
-target "alpine-develop" {
-  inherits = ["alpine", "_develop"]
-  tags = tag("alpine-develop")
-  cache-to = cache_to("alpine-develop")
-  cache-from = cache_from("alpine-develop")
+// v3 rewrite
+target "alpine-v3-rewrite" {
+  inherits = ["alpine", "_v3"]
+  platforms = ["linux/amd64"]
+  tags = tag("alpine-v3-rewrite")
+  cache-to = cache_to("alpine-v3-rewrite")
+  cache-from = cache_from("alpine-v3-rewrite")
 }
 
-target "hwaccel-alpine-develop" {
-  inherits = ["hwaccel-alpine", "_develop"]
-  tags = tag("hwaccel-alpine-develop")
-  cache-to = cache_to("hwaccel-alpine-develop")
-  cache-from = cache_from("hwaccel-alpine-develop")
+target "hwaccel-alpine-v3-rewrite" {
+  inherits = ["hwaccel-alpine", "_v3"]
+  platforms = ["linux/amd64"]
+  tags = tag("hwaccel-alpine-v3-rewrite")
+  cache-to = cache_to("hwaccel-alpine-v3-rewrite")
+  cache-from = cache_from("hwaccel-alpine-v3-rewrite")
 }
 
-target "hwaccel-develop" {
-  inherits = ["hwaccel", "_develop"]
-  tags = tag("hwaccel-develop")
-  cache-to = cache_to("hwaccel-develop")
-  cache-from = cache_from("hwaccel-develop")
+target "hwaccel-v3-rewrite" {
+  inherits = ["hwaccel", "_v3"]
+  platforms = ["linux/amd64"]
+  tags = tag("hwaccel-v3-rewrite")
+  cache-to = cache_to("hwaccel-v3-rewrite")
+  cache-from = cache_from("hwaccel-v3-rewrite")
 }
 
 # local test
@@ -179,16 +190,12 @@ function "tag" {
   result = concat(
     [
       "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}",
-      "docker.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}",
-      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}-${SHORT_BUILD_DATE}",
-      "docker.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}-${SHORT_BUILD_DATE}"
+      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}-${SHORT_BUILD_DATE}"
     ],
     variant == "alpine" ? [
-      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:latest",
-      "docker.io/${OWNER_NAME}/${IMAGE_NAME}:latest"
-    ] : variant == "alpine-develop" ? [
-      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:develop",
-      "docker.io/${OWNER_NAME}/${IMAGE_NAME}:develop"
+      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:latest"
+    ] : variant == "alpine-v3-rewrite" ? [
+      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:v3-rewrite"
     ] : []
   )
 }
