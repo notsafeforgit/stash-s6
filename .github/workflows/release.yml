@@ -19,6 +19,8 @@ permissions:
 
 jobs:
   bake:
+    # Let forks keep manual/push builds without running upstream scheduled publishes.
+    if: ${{ github.event_name != 'schedule' || github.repository == 'feederbox826/stash-s6' }}
     runs-on: ubuntu-latest
     steps:
       # checkout for timestamp
