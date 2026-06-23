@@ -11,6 +11,8 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [upstream_update]
+  schedule:
+    - cron: '0 0 */7 * *'
 
 permissions:
   contents: read
@@ -18,6 +20,8 @@ permissions:
 
 jobs:
   bake:
+    # Let forks keep manual/push builds without running upstream scheduled publishes.
+    if: ${{ github.event_name != 'schedule' || github.repository == 'feederbox826/stash-s6' }}
     runs-on: ubuntu-latest
     steps:
       # checkout for timestamp
