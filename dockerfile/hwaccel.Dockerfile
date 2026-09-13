@@ -57,6 +57,7 @@ RUN \
       ca-certificates \
       curl \
       jellyfin-ffmpeg7 \
+      libavif-bin \
       libvips-tools \
       locales \
       nano \

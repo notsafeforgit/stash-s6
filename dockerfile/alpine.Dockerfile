@@ -36,6 +36,7 @@ RUN \
   apk add --no-cache --no-progress \
     ca-certificates \
     ffmpeg \
+    libavif-apps \
     tzdata \
     uv \
     vips-tools \

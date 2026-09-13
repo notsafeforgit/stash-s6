@@ -38,6 +38,7 @@ RUN \
   apk add --no-cache --no-progress \
     ca-certificates \
     jellyfin-ffmpeg \
+    libavif-apps \
     tzdata \
     uv \
     vips-tools\
