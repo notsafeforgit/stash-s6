@@ -4,7 +4,15 @@ ARG \
   UPSTREAM_STASH="ghcr.io/notsafeforgit/stash:${STASH_TAG}"
 FROM $UPSTREAM_STASH AS stash
 
-FROM docker.io/library/alpine:3.23 AS final
+# Build patched HEIF/AVIF support against the runtime distribution.
+FROM alpine:3.24 AS heif
+RUN apk add --no-cache build-base cmake pkgconf curl ca-certificates aom-dev dav1d-dev libde265-dev x265-dev libjpeg-turbo-dev libpng-dev
+RUN apk add --no-cache meson samurai xz glib-dev expat-dev libwebp-dev tiff-dev librsvg-dev pango-dev fontconfig-dev lcms2-dev fftw-dev libexif-dev orc-dev openjpeg-dev libjxl-dev poppler-dev cfitsio-dev libimagequant-dev highway-dev libarchive-dev openexr-dev cgif-dev imagemagick-dev
+COPY ci/build-libheif.sh /build-libheif.sh
+COPY ci/build-vips.sh /build-vips.sh
+RUN sh /build-libheif.sh && sh /build-vips.sh
+
+FROM docker.io/library/alpine:3.24 AS final
 # OS environment variables
 ENV HOME="/config" \
   TZ="Etc/UTC" \
@@ -23,6 +31,7 @@ COPY --from=stash --chmod=755 /usr/bin/stash /app/stash
 COPY --from=ghcr.io/feederbox826/dropprs:latest /dropprs /usr/bin/dropprs
 RUN \
   echo "**** install base packages ****" && \
+  apk upgrade --no-cache && \
   apk add --no-cache --no-progress \
     bash \
     curl \
@@ -36,11 +45,12 @@ RUN \
   apk add --no-cache --no-progress \
     ca-certificates \
     ffmpeg \
-    libavif-apps \
     tzdata \
     uv \
     vips-tools \
-    vips-heif
+    vips-heif vips-jxl vips-magick vips-poppler \
+    libavif-apps \
+    aom-libs libdav1d libde265 x265-libs libjpeg-turbo libpng
 RUN \
   echo "**** symlink uv-pip ****" && \
   ln -s \
@@ -59,6 +69,13 @@ RUN \
   mkdir -p \
     /config \
     /defaults
+
+# Replace distro libraries and modules with the matching security builds.
+RUN find /usr/lib \( -name 'libheif.so*' -o -name 'libvips.so*' -o -name 'libvips-cpp.so*' \) -delete \
+    && rm -rf /usr/lib/vips-modules-* /usr/lib/*-linux-gnu/vips-modules-*
+COPY --from=heif /out/ /
+RUN heif-info --version | grep -F '1.23.4' \
+    && vips --version | grep -F '8.18.6'
 
 COPY stash/root/ /
 VOLUME /pip-install

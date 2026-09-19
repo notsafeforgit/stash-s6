@@ -18,7 +18,19 @@ RUN \
       /etc/apt/keyrings && \
     gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg /ci/jellyfin_team.gpg.key
 
-FROM docker.io/library/python:3.13-slim-trixie AS final
+# Build patched HEIF/AVIF support against the runtime distribution.
+FROM debian:trixie AS heif
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake pkg-config curl ca-certificates libaom-dev libdav1d-dev libde265-dev libx265-dev libjpeg-dev libpng-dev
+RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/*.sources \
+    && apt-get update \
+    && apt-get build-dep -y --no-install-recommends vips \
+    && apt-get install -y --no-install-recommends meson ninja-build xz-utils
+COPY ci/build-libheif.sh /build-libheif.sh
+COPY ci/build-vips.sh /build-vips.sh
+RUN export LIBHEIF_LIBDIR=lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) \
+    && sh /build-libheif.sh && sh /build-vips.sh
+
+FROM docker.io/library/python:3.14-slim-trixie AS final
 # arguments
 ARG \
   DEBIAN_FRONTEND="noninteractive"
@@ -51,14 +63,16 @@ RUN \
     sed -i 's/main/main contrib non-free/g' /etc/apt/sources.list.d/debian.sources && \
   echo "**** install packages ****" && \
     apt-get update -qq && \
+    apt-get upgrade -y && \
     apt-get install -y \
       --no-install-recommends \
       --no-install-suggests \
       ca-certificates \
       curl \
-      jellyfin-ffmpeg7 \
-      libavif-bin \
+      jellyfin-ffmpeg8 \
       libvips-tools \
+      libavif-bin \
+      libaom3 libdav1d7 libde265-0 libx265-215 libjpeg62-turbo libpng16-16t64 \
       locales \
       nano \
       tzdata \
@@ -105,6 +119,13 @@ RUN \
   mkdir -p \
     /config \
     /defaults
+
+# Replace distro libraries and modules with the matching security builds.
+RUN find /usr/lib \( -name 'libheif.so*' -o -name 'libvips.so*' -o -name 'libvips-cpp.so*' \) -delete \
+    && rm -rf /usr/lib/vips-modules-* /usr/lib/*-linux-gnu/vips-modules-*
+COPY --from=heif /out/ /
+RUN heif-info --version | grep -F '1.23.4' \
+    && vips --version | grep -F '8.18.6'
 
 COPY stash/root/ /
 VOLUME /pip-install
