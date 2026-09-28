@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/develop.yml'
       - 'dockerfile/**'
+      - 'ci/**'
       - 'docker-bake.hcl'
       - 'stash/**'
       - 'VERSION'

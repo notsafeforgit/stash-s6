@@ -30,6 +30,11 @@ COPY ci/build-vips.sh /build-vips.sh
 RUN export LIBHEIF_LIBDIR=lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) \
     && sh /build-libheif.sh && sh /build-vips.sh
 
+FROM debian:trixie AS avif
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake git pkg-config curl ca-certificates libaom-dev libdav1d-dev libjpeg-dev libpng-dev libxml2-dev libyuv-dev
+COPY ci/build-libavif.sh /build-libavif.sh
+RUN sh /build-libavif.sh
+
 FROM docker.io/library/python:3.14-slim-trixie AS final
 # arguments
 ARG \
@@ -71,7 +76,7 @@ RUN \
       curl \
       jellyfin-ffmpeg8 \
       libvips-tools \
-      libavif-bin \
+      libavif-bin libxml2 \
       libaom3 libdav1d7 libde265-0 libx265-215 libjpeg62-turbo libpng16-16t64 \
       locales \
       nano \
@@ -124,8 +129,10 @@ RUN \
 RUN find /usr/lib \( -name 'libheif.so*' -o -name 'libvips.so*' -o -name 'libvips-cpp.so*' \) -delete \
     && rm -rf /usr/lib/vips-modules-* /usr/lib/*-linux-gnu/vips-modules-*
 COPY --from=heif /out/ /
+COPY --from=avif /out/ /
 RUN heif-info --version | grep -F '1.23.4' \
-    && vips --version | grep -F '8.18.6'
+    && vips --version | grep -F '8.18.6' \
+    && avifenc --version | grep -F '1.4.2'
 
 COPY stash/root/ /
 VOLUME /pip-install

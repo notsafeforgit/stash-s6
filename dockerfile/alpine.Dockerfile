@@ -12,6 +12,11 @@ COPY ci/build-libheif.sh /build-libheif.sh
 COPY ci/build-vips.sh /build-vips.sh
 RUN sh /build-libheif.sh && sh /build-vips.sh
 
+FROM alpine:3.24 AS avif
+RUN apk add --no-cache build-base cmake git pkgconf curl ca-certificates aom-dev dav1d-dev libjpeg-turbo-dev libpng-dev libxml2-dev libyuv libyuv-dev
+COPY ci/build-libavif.sh /build-libavif.sh
+RUN sh /build-libavif.sh
+
 FROM docker.io/library/alpine:3.24 AS final
 # OS environment variables
 ENV HOME="/config" \
@@ -49,7 +54,7 @@ RUN \
     uv \
     vips-tools \
     vips-heif vips-jxl vips-magick vips-poppler \
-    libavif-apps \
+    libavif-apps libxml2 libyuv \
     aom-libs libdav1d libde265 x265-libs libjpeg-turbo libpng
 RUN \
   echo "**** symlink uv-pip ****" && \
@@ -74,8 +79,10 @@ RUN \
 RUN find /usr/lib \( -name 'libheif.so*' -o -name 'libvips.so*' -o -name 'libvips-cpp.so*' \) -delete \
     && rm -rf /usr/lib/vips-modules-* /usr/lib/*-linux-gnu/vips-modules-*
 COPY --from=heif /out/ /
+COPY --from=avif /out/ /
 RUN heif-info --version | grep -F '1.23.4' \
-    && vips --version | grep -F '8.18.6'
+    && vips --version | grep -F '8.18.6' \
+    && avifenc --version | grep -F '1.4.2'
 
 COPY stash/root/ /
 VOLUME /pip-install
