@@ -31,12 +31,28 @@ ghcr.io/feederbox826/stash-s6:hwaccel-alpine
 ```
 hardware acceleration from [jellyfin-ffmpeg](https://jellyfin.org/docs/general/administration/hardware-acceleration/), built on alpine
 
-## v3 rewrite variants
+## Compatible release and native previews
 
-These fork images are built from `ghcr.io/notsafeforgit/stash:v3-rewrite`:
-- `v3-rewrite` / `alpine-v3-rewrite`
-- `hwaccel-v3-rewrite`
-- `hwaccel-alpine-v3-rewrite`
+The final v2.5-compatible source is tagged `v2.5-compatible-final` in
+[notsafeforgit/stash](https://github.com/notsafeforgit/stash/blob/v3-rewrite/docs/releases/v2.5-compatible-final.md).
+Its preserved wrapper variants are `alpine-v2.5-compatible-final`,
+`hwaccel-v2.5-compatible-final`, and `hwaccel-alpine-v2.5-compatible-final` in
+`ghcr.io/notsafeforgit/stash-s6`. The release manifest records immutable digests.
+Pin that release or a digest to remain on the compatible database format.
+
+Native archive development publishes `alpine-native-preview`,
+`hwaccel-native-preview`, and `hwaccel-alpine-native-preview`. These are separate
+from the old `v3-rewrite` tags. Pushes validate the build definition; publishing
+requires a manual dispatch and an explicit Stash image digest:
+
+```sh
+gh workflow run develop.yml --ref v3-rewrite -f stash_digest=sha256:FULL_STASH_IMAGE_DIGEST
+```
+
+The wrapper never selects the newest image automatically. Each native image
+records its full source reference in `io.stash.source.image` and receives an
+additional tag containing the wrapper revision and source digest prefix.
+Test native releases against a copy before migrating a live database.
 
 ## environment variables
 `PUID` - Process User ID  

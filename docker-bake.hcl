@@ -9,14 +9,14 @@ group "release_ci_debian" {
   output = ["type=registry"]
 }
 
-// v3 rewrite CI
-group "v3_ci_alpine" {
-  targets = ["alpine-v3-rewrite", "hwaccel-alpine-v3-rewrite"]
+// Native previews use an explicitly selected source digest.
+group "native_ci_alpine" {
+  targets = ["alpine-native-preview", "hwaccel-alpine-native-preview"]
   output = ["type=registry"]
 }
 
-group "v3_ci_debian" {
-  targets = ["hwaccel-v3-rewrite"]
+group "native_ci_debian" {
+  targets = ["hwaccel-native-preview"]
   output = ["type=registry"]
 }
 
@@ -56,9 +56,14 @@ variable "GITHASH" {
   default = "local-build"
 }
 
-variable "STASH_TAG" {
+variable "STASH_SOURCE" {
   type = string
-  default = "v3-rewrite"
+  default = "ghcr.io/notsafeforgit/stash@sha256:0faad6d2cffb19dc97421b0879e638c83e4fe245eda871505c5d913d3fc44805"
+}
+
+variable "NATIVE_REVISION" {
+  type = string
+  default = "local-build"
 }
 
 variable "CI" {
@@ -90,12 +95,15 @@ target "_debian_multi" {
   platforms = ["linux/amd64", "linux/arm64"]
 }
 
-target "_v3" {
+target "_native" {
   platforms = ["linux/amd64"]
   pull = true
   no-cache-filter = ["stash"]
   args = {
-    STASH_TAG = STASH_TAG
+    UPSTREAM_STASH = STASH_SOURCE
+  }
+  labels = {
+    "io.stash.source.image" = STASH_SOURCE
   }
 }
 
@@ -124,29 +132,29 @@ target "hwaccel" {
   cache-from = cache_from("hwaccel")
 }
 
-// v3 rewrite
-target "alpine-v3-rewrite" {
-  inherits = ["alpine", "_v3"]
+// Native archive development
+target "alpine-native-preview" {
+  inherits = ["alpine", "_native"]
   platforms = ["linux/amd64"]
-  tags = tag("alpine-v3-rewrite")
-  cache-to = cache_to("alpine-v3-rewrite")
-  cache-from = cache_from("alpine-v3-rewrite")
+  tags = native_tag("alpine-native-preview")
+  cache-to = cache_to("alpine-native-preview")
+  cache-from = cache_from("alpine-native-preview")
 }
 
-target "hwaccel-alpine-v3-rewrite" {
-  inherits = ["hwaccel-alpine", "_v3"]
+target "hwaccel-alpine-native-preview" {
+  inherits = ["hwaccel-alpine", "_native"]
   platforms = ["linux/amd64"]
-  tags = tag("hwaccel-alpine-v3-rewrite")
-  cache-to = cache_to("hwaccel-alpine-v3-rewrite")
-  cache-from = cache_from("hwaccel-alpine-v3-rewrite")
+  tags = native_tag("hwaccel-alpine-native-preview")
+  cache-to = cache_to("hwaccel-alpine-native-preview")
+  cache-from = cache_from("hwaccel-alpine-native-preview")
 }
 
-target "hwaccel-v3-rewrite" {
-  inherits = ["hwaccel", "_v3"]
+target "hwaccel-native-preview" {
+  inherits = ["hwaccel", "_native"]
   platforms = ["linux/amd64"]
-  tags = tag("hwaccel-v3-rewrite")
-  cache-to = cache_to("hwaccel-v3-rewrite")
-  cache-from = cache_from("hwaccel-v3-rewrite")
+  tags = native_tag("hwaccel-native-preview")
+  cache-to = cache_to("hwaccel-native-preview")
+  cache-from = cache_from("hwaccel-native-preview")
 }
 
 # local test
@@ -194,8 +202,14 @@ function "tag" {
     ],
     variant == "alpine" ? [
       "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:latest"
-    ] : variant == "alpine-v3-rewrite" ? [
-      "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:v3-rewrite"
     ] : []
   )
+}
+
+function "native_tag" {
+  params = [variant]
+  result = [
+    "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}",
+    "ghcr.io/${OWNER_NAME}/${IMAGE_NAME}:${variant}-${NATIVE_REVISION}"
+  ]
 }
