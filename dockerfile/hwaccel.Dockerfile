@@ -56,7 +56,6 @@ ENV HOME="/config" \
   LOGGER_LEVEL="1"
 
 # copy over build files
-COPY stash/root/defaults /defaults
 COPY --from=stash --chmod=755 /usr/bin/stash /app/stash
 COPY --from=ghcr.io/astral-sh/uv:latest --chmod=755 /uv /bin/uv
 COPY --from=docker.io/mikefarah/yq /usr/bin/yq /usr/bin/yq
@@ -122,8 +121,7 @@ RUN \
   useradd -u 911 -d /config -s /bin/false -r -g stash -G video stash && \
   chage -d 0 stash && \
   mkdir -p \
-    /config \
-    /defaults
+    /config
 
 # Replace distro libraries and modules with the matching security builds.
 RUN find /usr/lib \( -name 'libheif.so*' -o -name 'libvips.so*' -o -name 'libvips-cpp.so*' \) -delete \

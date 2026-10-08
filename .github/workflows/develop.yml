@@ -38,6 +38,10 @@ jobs:
       revision: ${{ steps.source.outputs.revision }}
     steps:
       - uses: actions/checkout@v6
+      - name: Check optional Python dependency startup
+        run: |
+          bash -n stash/root/opt/entrypoint.sh stash/root/opt/python-requirements.sh
+          python3 ci/test_python_requirements.py
       - id: source
         name: Validate explicit Stash source
         env:

@@ -72,8 +72,7 @@ RUN \
   useradd -u 911 -d /config -s /bin/bash -r -g stash stash && \
   chage -d 0 stash && \
   mkdir -p \
-    /config \
-    /defaults
+    /config
 
 # Replace distro libraries and modules with the matching security builds.
 RUN find /usr/lib \( -name 'libheif.so*' -o -name 'libvips.so*' -o -name 'libvips-cpp.so*' \) -delete \

@@ -6,7 +6,7 @@ for [stashapp/stash#4300](https://github.com/stashapp/stash/issues/4300)
 - TZ settings
 - CUDA/ QSV images
   - NVENC encoding session patches
-- automatic python dependency installs
+- optional installation of explicitly configured Python dependencies
 
 -----
 # Tags
@@ -62,18 +62,34 @@ Test native releases against a copy before migrating a live database.
 `AUTO_AVGID` - allow automatic AVGID detection and replacement  
 `TZ` - timezone  
 `CUSTOM_CERT_PATH` - Path to custom root certificates to be added to stash (defaults to `/config/certs`)  
-`INSTALL_PY_DEPS` - Automatically install some python build-tools at startup  
+`INSTALL_PYTHON_REQUIREMENTS` - Set to `true` to install the explicit `/config/requirements.txt` at startup; disabled by default.
+
+`INSTALL_PY_DEPS` - Set to `true` to install optional Python build tools at startup.
+
 `IGNORE_BAD_PERMS` - Allow continuing with bad permissions instead of exiting.  
-`STASH_ENABLE_V3_UI` - Set to `true` to enable the forked v3 Stash UI.
+Native Stash includes only the v3 UI; no UI opt-in variable is needed.
+
+## Python dependencies
+
+Native startup does not install a bundled scraper package set or search plugin
+and scraper directories for requirements. Python remains available for chosen
+extensions. Provision their dependencies in a derived image or the persistent
+Python environment, or explicitly enable `INSTALL_PYTHON_REQUIREMENTS` with a
+nonempty `/config/requirements.txt`. Pin versions in that file. The wrapper
+preserves its contents and stops startup if an opted-in installation fails.
+`INSTALL_PY_DEPS` is a separate opt-in for compiler/build tools.
 
 ## migration-specific environment variables
 `MIGRATE` - automatic migration from `stashapp/stash` or `hotio/stash`
 
 ## Run modes
-### `stashapp/stash compatibility`
-I want to keep using the `stashapp/stash` image or possibly switch back
-- Replace `image: stashapp/stash` with your desired image
-- You will see a message `Running in stashapp/stash compatibility mode...`
+### Existing configuration layout
+
+An existing `/root/.stash` mount can retain its location without `MIGRATE`.
+This is a filesystem layout choice, not upstream database compatibility.
+Native database upgrades are one-way; use the frozen compatible release to
+stay on the older format. After native writes begin, returning to an upstream
+image does not constitute a lossless rollback.
 
 # docs
 - migrate from `stashapp/stash` or `hotio/stash`: [docs/migrate](docs/migrate.md)

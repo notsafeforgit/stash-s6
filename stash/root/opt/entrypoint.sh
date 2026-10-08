@@ -13,7 +13,7 @@ CONFIG_ROOT="/config"
 PYTHON_REQS="$CONFIG_ROOT/requirements.txt"
 STASHAPP_STASH_ROOT="/root/.stash"
 STASHAPP_STASH_CONFIG="$STASHAPP_STASH_ROOT/config.yml"
-COMPAT_MODE=0
+EXISTING_LAYOUT=0
 ROOTLESS=0
 # shellcheck disable=SC1091
 source "/opt/log.sh"
@@ -95,16 +95,6 @@ try_reown() {
 #}}} /🔑
 
 #{{{🚛 migration helpers
-# check if path in key can be migrated
-get_config_key() {
-  local key="$1"
-  local default="$2"
-  value=$(yq -r ".$key" "$STASH_CONFIG_FILE")
-  if [ "$value" = "null" ]; then
-    value="$default"
-  fi
-  echo "$value"
-}
 # move and update key to new path
 migrate_update() {
   local key="$1"
@@ -162,7 +152,7 @@ try_migrate() {
     fi
   # MIGRATE not set but might be needed
   elif [ -e "$STASHAPP_STASH_ROOT" ]; then
-    warn "🧩 $STASHAPP_STASH_ROOT exists, but MIGRATE is not set. Running in COMPAT_MODE"
+    info "Using the existing $STASHAPP_STASH_ROOT configuration layout"
     export STASH_CONFIG_FILE="$STASHAPP_STASH_CONFIG"
   fi
 }
@@ -245,75 +235,9 @@ stashapp_stash_migration() {
 }
 #}}} /🚚
 
-#{{{🐍 python helpers
-# search directory for requirements.txt
-search_dir_reqs() {
-  local target_dir="$1"
-  if [ ! -d "$target_dir" ]; then
-    warn "🐍 $target_dir not found, skipping requirement search"
-    return 0
-  fi
-  find "$target_dir" -type f -name "*.yml" -maxdepth 3 -print0 | while IFS= read -r -d '' ymlfile
-  do
-    local plugindir
-    plugindir="$(dirname "$ymlfile")"
-    local reqfile="$plugindir/requirements.txt"
-    if [ -f "$reqfile" ]; then
-      parse_reqs "$reqfile"
-    fi
-  done
-}
-# parse requirements
-parse_reqs() {
-  local file="$1"
-  info "🐍 Parsing $file"
-  printf "\n# %s \n" "$file" >> "$PYTHON_REQS"
-  while IFS="" read -r p || [ -n "$p" ]
-  do
-    [[ "$p" = \#* ]] && continue # skip comments
-    read -r -a pkgarg <<< "$p"
-    debug "🐍 Adding ${pkgarg[0]} to requirements.txt"
-    echo "${pkgarg[0]}" >> "$PYTHON_REQS"
-  done < "$file"
-}
-find_reqs() {
-  # check that config.yml exists
-  if [ ! -f "$STASH_CONFIG_FILE" ]; then
-    warn "🐍 config.yml not found, skipping requirements.txt generation"
-    return 0
-  fi
-  # iterate over plugins and scrapers
-  search_dir_reqs "$(get_config_key "plugins_path"  "$CONFIG_ROOT/plugins")"
-  search_dir_reqs "$(get_config_key "scrapers_path" "$CONFIG_ROOT/scrapers")"
-}
-# dedupe requirements.txt
-dedupe_reqs() {
-  awk '!seen[$0]++' "$PYTHON_REQS" > "$PYTHON_REQS.tmp"
-  mv -f "$PYTHON_REQS.tmp" "$PYTHON_REQS"
-}
-# install python dependencies
-install_python_deps() {
-  # copy over /defaults/requirements if it doesn't exist
-  if [ ! -f "$PYTHON_REQS" ] || [ ! -s "$PYTHON_REQS" ]; then
-    debug "🐍 Copying default requirements.txt"
-    cp "/defaults/requirements.txt" "$PYTHON_REQS" && \
-      try_reown_r "$PYTHON_REQS"
-  fi
-  # check permission of requirements.txt
-  if ! try_reown_r "$PYTHON_REQS"; then
-    error "🐍 requirements.txt is not writeable, skipping search"
-  else
-    find_reqs
-    dedupe_reqs
-  fi
-  # fix /pip-install directory
-  info "🐍 Installing/upgrading python requirements..."
-  # UV_CACHE_DIR = /pip-install/cache
-  try_reown_r "$UV_TARGET" && \
-    try_reown_r "$UV_CACHE_DIR" && \
-    runas /usr/bin/uv-pip requirements "$PYTHON_REQS"
-}
-#}}} /🐍
+# Explicit, optional Python dependencies for installed extensions.
+# shellcheck disable=SC1091
+source "/opt/python-requirements.sh"
 
 #{{{ misc helpers
 # trap exit and error
@@ -358,13 +282,13 @@ avgid_test() {
 }
 # status of UID and GID changes
 user_status() {
-  # COMPAT_MODE
-  if [ $COMPAT_MODE -eq 1 ]; then
+  # EXISTING_LAYOUT
+  if [ $EXISTING_LAYOUT -eq 1 ]; then
     # running as root since no PUID/PGID access
     if [ "$CURUSR" -eq 0 ]; then
-      warn "🧩⚠️ COMPAT_MODE running as root since PUID/PGID missing write/ stat permissions"
+      warn "🧩⚠️ EXISTING_LAYOUT running as root since PUID/PGID missing write/ stat permissions"
     else
-      info "🧩🎭 COMPAT_MODE running as $CURUSR:$CURGRP"
+      info "🧩🎭 EXISTING_LAYOUT running as $CURUSR:$CURGRP"
     fi
   else
     # running as rootless
@@ -390,9 +314,9 @@ user_status() {
 #{{{ main
 trap finish EXIT
 # user setup
-# check if running in stashapp/stash compatibility mode
+# Preserve the existing configuration directory layout; native database upgrades remain one-way.
 if [ -e "$STASHAPP_STASH_ROOT" ] && [[ "$MIGRATE" != "TRUE" ]] && [[ "$MIGRATE" != "true" ]]; then
-  COMPAT_MODE=1
+  EXISTING_LAYOUT=1
   # change UID/GID for test
   CURUSR="$PUID"
   CURGRP="$PGID"
@@ -435,8 +359,8 @@ HW Accel:    $HWACCEL"
 if [ $ROOTLESS -eq 1 ]; then
   echo "Rootless:    TRUE"
 fi
-if [ $COMPAT_MODE -eq 1 ]; then
-  echo "stashapp/stash mode: TRUE"
+if [ $EXISTING_LAYOUT -eq 1 ]; then
+  echo "Existing /root/.stash configuration layout: TRUE"
 fi
 echo '
 ───────────────────────────────────────
@@ -447,16 +371,16 @@ entrypoint.sh
 truncate -s 0 /config/stash-s6.log
 # print to file
 echo "stash-s6 logfile | $STASH_S6_VARIANT - $STASH_S6_BUILD_DATE ($STASH_S6_GITHASH)" > "$CONFIG_ROOT"/stash-s6.log
-echo "UID:$CURUSR GID:$CURGRP ROOTLESS:$ROOTLESS HWACCEL:$HWACCEL COMPAT_MODE:$COMPAT_MODE" >> "$CONFIG_ROOT"/stash-s6.log
+echo "UID:$CURUSR GID:$CURGRP ROOTLESS:$ROOTLESS HWACCEL:$HWACCEL EXISTING_LAYOUT:$EXISTING_LAYOUT" >> "$CONFIG_ROOT"/stash-s6.log
 user_status
 try_migrate
-install_python_deps
+install_python_deps || exit 1
 install_custom_certs
 # danger if ffmpeg present locally
 check_ffmpeg "$CONFIG_ROOT"
 check_ffmpeg "$STASHAPP_STASH_ROOT"
 # run additional scripts
-[[ $INSTALL_PY_DEPS ]] && /opt/add-py-build.sh "$ROOTLESS"
+[[ "$INSTALL_PY_DEPS" == "true" || "$INSTALL_PY_DEPS" == "TRUE" || "$INSTALL_PY_DEPS" == "1" ]] && /opt/add-py-build.sh "$ROOTLESS"
 # finally start stash
 echo '
 Starting stash...
