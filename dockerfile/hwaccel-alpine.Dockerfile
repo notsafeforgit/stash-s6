@@ -51,6 +51,7 @@ RUN \
   echo "**** install packages ****" && \
   apk add --no-cache --no-progress \
     ca-certificates \
+    translate-shell \
     jellyfin-ffmpeg \
     tzdata \
     uv \
@@ -58,6 +59,7 @@ RUN \
     vips-heif vips-jxl vips-magick vips-poppler \
     libavif-apps libxml2 libyuv \
     aom-libs libdav1d libde265 x265-libs libjpeg-turbo libpng
+RUN trans -no-init -version
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
   echo "**** install optional x86 drivers ****" && \
     apk add --no-cache --no-progress \

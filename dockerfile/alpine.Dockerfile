@@ -49,6 +49,7 @@ RUN \
   echo "**** install packages ****" && \
   apk add --no-cache --no-progress \
     ca-certificates \
+    translate-shell \
     ffmpeg \
     tzdata \
     uv \
@@ -56,6 +57,7 @@ RUN \
     vips-heif vips-jxl vips-magick vips-poppler \
     libavif-apps libxml2 libyuv \
     aom-libs libdav1d libde265 x265-libs libjpeg-turbo libpng
+RUN trans -no-init -version
 RUN \
   echo "**** symlink uv-pip ****" && \
   ln -s \

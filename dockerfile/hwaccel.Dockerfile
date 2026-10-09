@@ -79,6 +79,7 @@ RUN \
       libaom3 libdav1d7 libde265-0 libx265-215 libjpeg62-turbo libpng16-16t64 \
       locales \
       nano \
+      translate-shell \
       tzdata \
       wget && \
   echo "**** install non-free drivers and intel compute runtime ****" && \
@@ -96,6 +97,7 @@ RUN \
       /var/lib/apt/lists/* \
       /var/tmp/* \
       /var/log/*
+RUN trans -no-init -version
 RUN \
   echo "**** symlink packages ****" && \
   ln -s \

@@ -54,6 +54,10 @@ records its full source reference in `io.stash.source.image` and receives an
 additional tag containing the wrapper revision and source digest prefix.
 Test native releases against a copy before migrating a live database.
 
+Native variants include Translate Shell for Stash's optional translation worker.
+The executable does not enable translations by itself: configure
+`translation_worker_enabled: true` in Stash and restart to process queued work.
+
 ## environment variables
 `PUID` - Process User ID  
 `PGID` - Process Group ID  
